@@ -1,0 +1,154 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Welcome to SignalWire!</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js" integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em" crossorigin="anonymous"></script>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-default">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#1" style="padding: 5px;">
+            <img alt="Brand" src="https://signalwire.com/assets/images/logo.svg" style="height: 40px;">
+          </a>
+        </div>
+      </div>
+    </nav>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12">
+          <div id="url_params_error" style="display: none;">
+            <h1>Missing GET params.</h1>
+            <p>
+              <b>h</b>: Host<br/>
+              <b>l</b>: Login<br/>
+              <b>p</b>: Password<br/>
+              <b>e</b>: Extension<br/>
+            </p>
+          </div>
+          <video id="webcam" style="width: 100%; height: 400px; display: none;" autoplay="autoplay"></video>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.signalwire.com/libs/js/signalwire/1.0.0-rc.3/signalwire.min.js"></script>
+    <script>
+      var _session = null
+      var _currentCall = null
+      var _calls = []
+
+      window.onunload = function () {
+        if (_currentCall) {
+          _currentCall.hangup()
+        }
+        if (_session) {
+          _session.disconnect()
+        }
+      }
+
+      window.onload = function () {
+        var _autoCall = function (extension) {
+          _checkSession()
+          _currentCall = _session.newCall({
+            destinationNumber: extension,
+            callerName: 'SW JS client',
+            callerNumber: 'swclient@signalwire.com',
+            // localElementId: 'webcam-local',
+            remoteElementId: 'webcam',
+            video: true,
+            onNotification: data => {
+              _onNotification(data)
+            }
+          })
+        }
+
+        var _autoConnect = function () {
+          var params = new URLSearchParams(window.location.search.substring(1))
+          var host = params.get('h') || ''
+          var login = params.get('l') || ''
+          var password = params.get('p') || ''
+          var extension = params.get('e') || ''
+
+          if (!host || !login || !password || !extension) {
+            $('#url_params_error').show()
+            return
+          }
+
+          _session = new Verto({ host, login, password })
+
+          _session.on('signalwire.error', error => {
+            console.warn('GLOBAL: signalwire.error', error)
+          })
+
+          _session.on('signalwire.notification', notification => {
+            _onNotification(notification)
+          })
+
+          _session.on('signalwire.ready', session => {
+            $('#url_params_error').hide()
+            _autoCall(extension)
+          })
+
+          _session.connect()
+        }
+
+        var _checkSession = function () {
+          if (!_session) { throw 'Session not initialized!' }
+        }
+
+        var _checkCurrentCall = function () {
+          if (!_currentCall) { throw 'No active call!' }
+        }
+
+        $('#cantinaForm .hangupExtension').on('click', function () {
+          _checkCurrentCall()
+          _currentCall.hangup()
+        })
+
+        var _dialogChange = dialog => {
+          _currentCall = dialog
+          if (dialog.state === 'active') {
+            var video = document.getElementById('webcam')
+            video.srcObject = dialog.remoteStream
+            video.style.display = 'block'
+            // $('#cantinaForm .hangupExtension').show()
+            // $('#cantinaForm .callExtension').hide()
+          } else if (dialog.state === 'destroy') {
+            // $('#cantinaForm .hangupExtension').hide()
+            // $('#cantinaForm .callExtension').show()
+          }
+        }
+
+        var _onNotification = notification => {
+          switch (notification.type) {
+            case 'dialogUpdate':
+              _dialogChange(notification.dialog)
+              break
+            case 'conferenceUpdate':
+              // Live notification from the conference: start talking / video floor changed / audio or video state changes / a participant joins or leaves and so on..
+              break
+            case 'participantData':
+              // Caller's data like name and number to update the UI. In case of a conference call you will get the name of the room and the extension.
+              break
+            case 'vertoClientReady':
+              // All previously dialogs have been reattached. Note: FreeSWITCH 1.8+ only.
+              break
+            case 'userMediaError':
+              // Permission denied or invalid audio/video params on `getUserMedia`
+              break
+            case 'event':
+              // Generic notification received
+              break
+          }
+        }
+
+        _autoConnect()
+      }
+
+    </script>
+  </body>
+</html>
