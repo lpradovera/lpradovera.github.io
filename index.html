@@ -17,6 +17,8 @@
             <img alt="Brand" src="https://signalwire.com/assets/images/logo.svg" style="height: 40px;">
           </a>
         </div>
+        <span class="navbar-text" id="hostlabel"></span>
+        <span class="navbar-text" id="extlabel"></span>
       </div>
     </nav>
     <div class="container">
@@ -77,6 +79,9 @@
             $('#url_params_error').show()
             return
           }
+
+          $('#hostlabel').html(host);
+          $('#extlabel').html(extension);
 
           _session = new Verto({ host, login, password })
 
